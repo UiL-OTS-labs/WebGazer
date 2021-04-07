@@ -231,6 +231,12 @@ function paintCurrentFrame(canvas, width, height) {
  * @returns {*}
  */
 async function getPrediction(regModelIndex) {
+  // this allows getPrediction to work even when webgazer is paused, since the only necessary
+  // component for getPrediction in loop() is paintCurrentFrame().
+  if(paused){
+    paintCurrentFrame(videoElementCanvas, videoElementCanvas.width, videoElementCanvas.height);
+  }
+
   var predictions = [];
   // [20200617 xk] TODO: this call should be made async somehow. will take some work.
   latestEyeFeatures = await getPupilFeatures(videoElementCanvas, videoElementCanvas.width, videoElementCanvas.height);
