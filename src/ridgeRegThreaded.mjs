@@ -17,8 +17,8 @@ var trailDataWindow = 10;
  * this object allow to perform threaded ridge regression
  * @constructor
  */
-reg.RidgeRegThreaded = function() {
-    this.init();
+reg.RidgeRegThreaded = function(workerScriptURL) {
+    this.init(workerScriptURL);
 };
 
 /**
