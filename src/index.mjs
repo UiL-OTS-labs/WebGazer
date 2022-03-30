@@ -145,18 +145,19 @@ function checkEyesInValidationBox() {
     var xPositions = false;
     var yPositions = false;
 
-    //check if the x values for the left and right eye are within the
-    //validation box
-    if (eyeLX > leftBound && eyeLX < rightBound) {
-      if (eyeRX > leftBound && eyeRX < rightBound) {
+    // check if the x values for the left and right eye are within the
+    // validation box
+    // add the width when comparing against the rightBound (which is the left edge on the preview)
+    if (eyeLX > leftBound && eyeLX + latestEyeFeatures.left.width < rightBound) {
+      if (eyeRX > leftBound && eyeRX + latestEyeFeatures.right.width < rightBound) {
         xPositions = true;
       }
     }
 
     //check if the y values for the left and right eye are within the
     //validation box
-    if (eyeLY > topBound && eyeLY < bottomBound) {
-      if (eyeRY > topBound && eyeRY < bottomBound) {
+    if (eyeLY > topBound && eyeLY + latestEyeFeatures.left.height < bottomBound) {
+      if (eyeRY > topBound && eyeRY + latestEyeFeatures.right.height < bottomBound) {
         yPositions = true;
       }
     }
@@ -200,7 +201,7 @@ function getPupilFeatures(canvas, width, height) {
     return;
   }
   try {
-    return curTracker.getEyePatches(canvas, width, height);
+    return curTracker.getEyePatches(videoElement, canvas, width, height);
   } catch(err) {
     console.log("can't get pupil features ", err);
     return null;
@@ -552,7 +553,7 @@ async function init(stream) {
   gazeDot.style.display = webgazer.params.showGazeDot ? 'block' : 'none';
   gazeDot.style.position = 'fixed';
   gazeDot.style.zIndex = 99999;
-  gazeDot.style.left = '-5px'; //'-999em';
+  gazeDot.style.left = '-5px';
   gazeDot.style.top  = '-5px';
   gazeDot.style.background = 'red';
   gazeDot.style.borderRadius = '100%';
@@ -563,21 +564,24 @@ async function init(stream) {
   // Add other preview/feedback elements to the screen once the video has shown and its parameters are initialized
   videoContainerElement.appendChild(videoElement);
   document.body.appendChild(videoContainerElement);
-  function setupPreviewVideo(e) {
+  const videoPreviewSetup = new Promise((res) => {
+    function setupPreviewVideo(e) {
 
-    // All video preview parts have now been added, so set the size both internally and in the preview window.
-    setInternalVideoBufferSizes( videoElement.videoWidth, videoElement.videoHeight );
-    webgazer.setVideoViewerSize( webgazer.params.videoViewerWidth, webgazer.params.videoViewerHeight );
+      // All video preview parts have now been added, so set the size both internally and in the preview window.
+      setInternalVideoBufferSizes( videoElement.videoWidth, videoElement.videoHeight );
+      webgazer.setVideoViewerSize( webgazer.params.videoViewerWidth, webgazer.params.videoViewerHeight );
 
-    videoContainerElement.appendChild(videoElementCanvas);
-    videoContainerElement.appendChild(faceOverlay);
-    videoContainerElement.appendChild(faceFeedbackBox);
-    document.body.appendChild(gazeDot);
+      videoContainerElement.appendChild(videoElementCanvas);
+      videoContainerElement.appendChild(faceOverlay);
+      videoContainerElement.appendChild(faceFeedbackBox);
+      document.body.appendChild(gazeDot);
 
-    // Run this only once, so remove the event listener
-    e.target.removeEventListener(e.type, setupPreviewVideo);
-  };
-  videoElement.addEventListener('timeupdate', setupPreviewVideo);
+      // Run this only once, so remove the event listener
+      e.target.removeEventListener(e.type, setupPreviewVideo);
+      res();
+    };
+    videoElement.addEventListener('loadeddata', setupPreviewVideo);
+  });
 
   addMouseEventListeners();
 
@@ -585,6 +589,7 @@ async function init(stream) {
   paused = false;
   clockStart = performance.now();
 
+  await videoPreviewSetup;
   await loop();
 }
 
@@ -655,7 +660,7 @@ webgazer.begin = function(onFail) {
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia( webgazer.params.camConstraints );
-      init(stream);
+      await init(stream);
       resolve(webgazer);
     } catch(err) {
       onFail();
